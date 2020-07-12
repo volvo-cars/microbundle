@@ -1211,10 +1211,7 @@ Build \\"cssModulesFalse\\" to dist:
 
 exports[`fixtures build css-modules--false with microbundle 2`] = `4`;
 
-exports[`fixtures build css-modules--false with microbundle 3`] = `
-"body{display:flex;color:red;background:#00f}.test_class_that_shouldnt_be_scoped{background-color:#00f}
-.not_scoped_class{color:pink}"
-`;
+exports[`fixtures build css-modules--false with microbundle 3`] = `"body{display:flex;color:red;background:#00f}.test_class_that_shouldnt_be_scoped{background-color:#00f}.not_scoped_class{color:pink}"`;
 
 exports[`fixtures build css-modules--false with microbundle 4`] = `
 "export default function(){}
@@ -1260,10 +1257,7 @@ Build \\"cssModulesNull\\" to dist:
 
 exports[`fixtures build css-modules--null with microbundle 2`] = `4`;
 
-exports[`fixtures build css-modules--null with microbundle 3`] = `
-"body{display:flex;color:red;background:#00f}._2Dgv6{background-color:#00f}
-._2kWDE{color:pink}"
-`;
+exports[`fixtures build css-modules--null with microbundle 3`] = `"body{display:flex;color:red;background:#00f}._2Dgv6{background-color:#00f}._2kWDE{color:pink}"`;
 
 exports[`fixtures build css-modules--null with microbundle 4`] = `
 "export default function(){var e=document.createElement(\\"div\\");return e.className=\\"_2kWDE\\",e}
@@ -1309,10 +1303,7 @@ Build \\"cssModulesString\\" to dist:
 
 exports[`fixtures build css-modules--string with microbundle 2`] = `4`;
 
-exports[`fixtures build css-modules--string with microbundle 3`] = `
-"body{display:flex;color:red;background:#00f}._contains_this_81567d0efc15a456670452d3277e1a68{background-color:#00f}
-._contains_this_0a8c24df242c2cd708036873307aea94{color:pink}"
-`;
+exports[`fixtures build css-modules--string with microbundle 3`] = `"body{display:flex;color:red;background:#00f}._contains_this_81567d0efc15a456670452d3277e1a68{background-color:#00f}._contains_this_0a8c24df242c2cd708036873307aea94{color:pink}"`;
 
 exports[`fixtures build css-modules--string with microbundle 4`] = `
 "export default function(){var a=document.createElement(\\"div\\");return a.className=\\"_contains_this_0a8c24df242c2cd708036873307aea94 _contains_this_81567d0efc15a456670452d3277e1a68\\",a}
@@ -1358,10 +1349,7 @@ Build \\"cssModulesTrue\\" to dist:
 
 exports[`fixtures build css-modules--true with microbundle 2`] = `4`;
 
-exports[`fixtures build css-modules--true with microbundle 3`] = `
-"body{display:flex;color:red;background:#00f}._1E6DU{background-color:#00f}
-._2kWDE{color:pink}"
-`;
+exports[`fixtures build css-modules--true with microbundle 3`] = `"body{display:flex;color:red;background:#00f}._1E6DU{background-color:#00f}._2kWDE{color:pink}"`;
 
 exports[`fixtures build css-modules--true with microbundle 4`] = `
 "export default function(){var e=document.createElement(\\"div\\");return e.className=\\"_2kWDE _1E6DU\\",e}
