@@ -79,24 +79,13 @@ export default async function microbundle(inputOptions) {
 		input: options.input,
 	});
 
-	options.multipleEntries = options.entries.length > 1;
-
 	let formats = (options.format || options.formats).split(',');
 	// always compile cjs first if it's there:
 	formats.sort((a, b) => (a === 'cjs' ? -1 : a > b ? 1 : 0));
 
 	let steps = [];
-	for (let i = 0; i < options.entries.length; i++) {
-		for (let j = 0; j < formats.length; j++) {
-			steps.push(
-				createConfig(
-					options,
-					options.entries[i],
-					formats[j],
-					i === 0 && j === 0,
-				),
-			);
-		}
+	for (let j = 0; j < formats.length; j++) {
+		steps.push(createConfig(options, options.entries, formats[j], j === 0));
 	}
 
 	if (options.watch) {
@@ -110,6 +99,7 @@ export default async function microbundle(inputOptions) {
 			if (inputOptions.cache !== false) {
 				inputOptions.cache = cache;
 			}
+
 			let bundle = await rollup(inputOptions);
 			cache = bundle;
 			await bundle.write(outputOptions);
@@ -203,6 +193,7 @@ async function getInput({ entries, cwd, source, module }) {
 
 async function getOutput({ cwd, output, pkgMain, pkgName }) {
 	let main = resolve(cwd, output || pkgMain || 'dist');
+
 	if (!main.match(/\.[a-z]+$/) || (await isDir(main))) {
 		main = resolve(main, `${removeScope(pkgName)}.js`);
 	}
@@ -244,64 +235,72 @@ function replaceName(filename, name) {
 	);
 }
 
-function getMain({ options, entry, format }) {
+function getMain({ options, entries, format }) {
 	const { pkg } = options;
 	const pkgMain = options['pkg-main'];
 
-	if (!pkgMain) {
-		return options.output;
-	}
+	const inputs = {};
+	entries.forEach(entry => {
+		let mainNoExtension = options.output;
 
-	let mainNoExtension = options.output;
-	if (options.multipleEntries) {
-		let name = entry.match(/([\\/])index(\.(umd|cjs|es|m))?\.(mjs|[tj]sx?)$/)
-			? mainNoExtension
-			: entry;
+		if (!pkgMain) {
+			inputs[basename(mainNoExtension, extname(mainNoExtension))] = entry;
+			return;
+		}
+
+		let name;
+		// when we have multiple entries we look for the index file and mark that as our main entry
+		if (entries.length > 1) {
+			name = entry.match(/([\\/])index(\.(umd|cjs|es|m))?\.(mjs|[tj]sx?)$/)
+				? mainNoExtension
+				: entry;
+		} else {
+			name = mainNoExtension;
+		}
+
 		mainNoExtension = resolve(dirname(mainNoExtension), basename(name));
-	}
-	mainNoExtension = mainNoExtension.replace(
-		/(\.(umd|cjs|es|m))?\.(mjs|[tj]sx?)$/,
-		'',
-	);
 
-	const mainsByFormat = {};
+		mainNoExtension = mainNoExtension.replace(
+			/(\.(umd|cjs|es|m))?\.(mjs|[tj]sx?)$/,
+			'',
+		);
 
-	mainsByFormat.es = replaceName(
-		pkg.module && !pkg.module.match(/src\//)
-			? pkg.module
-			: pkg['jsnext:main'] || 'x.esm.js',
-		mainNoExtension,
-	);
-	mainsByFormat.modern = replaceName(
-		(pkg.syntax && pkg.syntax.esmodules) || pkg.esmodule || 'x.modern.js',
-		mainNoExtension,
-	);
-	mainsByFormat.cjs = replaceName(pkg['cjs:main'] || 'x.js', mainNoExtension);
-	mainsByFormat.umd = replaceName(
-		pkg['umd:main'] || pkg.unpkg || 'x.umd.js',
-		mainNoExtension,
-	);
+		const mainsByFormat = {};
 
-	return mainsByFormat[format] || mainsByFormat.cjs;
+		mainsByFormat.es = replaceName(
+			pkg.module && !pkg.module.match(/src\//)
+				? pkg.module
+				: pkg['jsnext:main'] || 'x.esm.js',
+			mainNoExtension,
+		);
+		mainsByFormat.modern = replaceName(
+			(pkg.syntax && pkg.syntax.esmodules) || pkg.esmodule || 'x.modern.js',
+			mainNoExtension,
+		);
+		mainsByFormat.cjs = replaceName(pkg['cjs:main'] || 'x.js', mainNoExtension);
+		mainsByFormat.umd = replaceName(
+			pkg['umd:main'] || pkg.unpkg || 'x.umd.js',
+			mainNoExtension,
+		);
+
+		const file = mainsByFormat[format] || mainsByFormat.cjs;
+		inputs[basename(file, extname(file))] = entry;
+	});
+
+	return inputs;
 }
 
 // shebang cache map because the transform only gets run once
 const shebang = {};
 
-function createConfig(options, entry, format, writeMeta) {
+function createConfig(options, entries, format, writeMeta) {
 	let { pkg } = options;
 
 	/** @type {(string|RegExp)[]} */
-	let external = ['dns', 'fs', 'path', 'url'].concat(
-		options.entries.filter(e => e !== entry),
-	);
+	let external = ['dns', 'fs', 'path', 'url'];
 
 	/** @type {Record<string, string>} */
 	let outputAliases = {};
-	// since we transform src/index.js, we need to rename imports for it:
-	if (options.multipleEntries) {
-		outputAliases['.'] = './' + basename(options.output);
-	}
 
 	const moduleAliases = options.alias ? parseAliasArgument(options.alias) : [];
 	const aliasIds = moduleAliases.map(alias => alias.find);
@@ -362,7 +361,9 @@ function createConfig(options, entry, format, writeMeta) {
 			? () => resolve(options.cwd, rawMinifyValue)
 			: () => resolve(options.cwd, 'mangle.json');
 
-	const useTypescript = extname(entry) === '.ts' || extname(entry) === '.tsx';
+	const useTypescript = entries.some(
+		entry => extname(entry) === '.ts' || extname(entry) === '.tsx',
+	);
 
 	const escapeStringExternals = ext =>
 		ext instanceof RegExp ? ext.source : escapeStringRegexp(ext);
@@ -395,23 +396,19 @@ function createConfig(options, entry, format, writeMeta) {
 	let cache;
 	if (modern) cache = false;
 
-	const absMain = resolve(options.cwd, getMain({ options, entry, format }));
-	const outputDir = dirname(absMain);
-	const outputEntryFileName = basename(absMain);
+	const inputs = getMain({ options, entries, format });
+	const outputDir = dirname(options.output);
 
 	let config = {
 		/** @type {import('rollup').InputOptions} */
 		inputOptions: {
 			// disable Rollup's cache for the modern build to prevent re-use of legacy transpiled modules:
 			cache,
-
-			input: entry,
+			input: inputs,
+			preserveEntrySignatures: 'allow-extension',
 			external: id => {
 				if (id === 'babel-plugin-transform-async-to-promises/helpers') {
 					return false;
-				}
-				if (options.multipleEntries && id === '.') {
-					return true;
 				}
 				if (aliasIds.indexOf(id) >= 0) {
 					return false;
@@ -430,11 +427,7 @@ function createConfig(options, entry, format, writeMeta) {
 						// only write out CSS for the first bundle (avoids pointless extra files):
 						inject: false,
 						extract: !!writeMeta,
-						minimize: options.compress
-							? {
-									preset: 'default',
-							  }
-							: false,
+						minimize: options.compress,
 					}),
 					moduleAliases.length > 0 &&
 						alias({
@@ -481,7 +474,7 @@ function createConfig(options, entry, format, writeMeta) {
 											? undefined
 											: options.jsx || 'h',
 								},
-								files: options.entries,
+								files: entries,
 							},
 							tsconfig: options.tsconfig,
 							tsconfigOverride: {
@@ -590,7 +583,7 @@ function createConfig(options, entry, format, writeMeta) {
 			name: options.name && options.name.replace(/^global\./, ''),
 			extend: /^global\./.test(options.name),
 			dir: outputDir,
-			entryFileNames: outputEntryFileName,
+			exports: 'auto',
 		},
 	};
 
