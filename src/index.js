@@ -583,7 +583,7 @@ function createConfig(options, entries, format, writeMeta) {
 			name: options.name && options.name.replace(/^global\./, ''),
 			extend: /^global\./.test(options.name),
 			dir: outputDir,
-			exports: 'auto',
+			exports: 'named',
 		},
 	};
 
